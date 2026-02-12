@@ -1,0 +1,20 @@
+# IDE
+.idea/
+
+# Зависимости
+node_modules/
+
+# Сборки и кэш
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Окружение
+.env
+.env.*
+
+# Системные и отладочные
+.DS_Store
+*.pem
+*.log
