@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 // Главная страница-заглушка
 export default function HomePage() {
@@ -11,8 +12,12 @@ export default function HomePage() {
         </p>
       </div>
       <div className="flex gap-3">
-        <Button>Войти</Button>
-        <Button variant="outline">Регистрация</Button>
+        <Button asChild>
+          <Link href="/login">Войти</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/register">Регистрация</Link>
+        </Button>
       </div>
     </div>
   );

@@ -1,11 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteTaskDialog } from "@/features/tasks/delete-task-dialog";
 import { useTaskStore } from "@/features/tasks/store";
 import { TaskFilters } from "@/features/tasks/task-filters";
 import { TaskFormModal } from "@/features/tasks/task-form-modal";
 import { TaskTable } from "@/features/tasks/task-table";
+import {
+  useCreateTask,
+  useDeleteTask,
+  useTasksQuery,
+  useUpdateTask,
+} from "@/features/tasks/use-tasks";
 import { Task } from "@/shared/types";
 import { Plus } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -14,12 +21,16 @@ import { useMemo, useState } from "react";
 export default function ProjectTasksPage() {
   const { id } = useParams<{ id: string }>();
 
-  // Данные и actions из стора
-  const tasks = useTaskStore((s) => s.tasks);
+  // Данные из TanStack Query — с loading и error состояниями
+  const { data: tasks = [], isLoading } = useTasksQuery(id);
+
+  // Мутации
+  const createTask = useCreateTask(id);
+  const updateTask = useUpdateTask(id);
+  const deleteTaskMutation = useDeleteTask(id);
+
+  // Фильтры из Zustand (клиентский стейт)
   const filters = useTaskStore((s) => s.filters);
-  const addTask = useTaskStore((s) => s.addTask);
-  const updateTask = useTaskStore((s) => s.updateTask);
-  const deleteTaskFromStore = useTaskStore((s) => s.deleteTask);
   const setSearch = useTaskStore((s) => s.setSearch);
   const setStatusFilter = useTaskStore((s) => s.setStatusFilter);
 
@@ -35,16 +46,15 @@ export default function ProjectTasksPage() {
     { open: false } | { open: true; task: Task }
   >({ open: false });
 
-  // Фильтрация задач текущего проекта
+  // Фильтрация — теперь без projectId фильтра, т.к. API уже вернул только нужные
   const filteredTasks = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
     return tasks
-      .filter((t) => t.projectId === id)
       .filter((t) =>
         filters.status === "all" ? true : t.status === filters.status,
       )
       .filter((t) => t.title.toLowerCase().includes(query));
-  }, [tasks, filters, id]);
+  }, [tasks, filters]);
 
   const formKey = formModal.open
     ? formModal.mode === "edit"
@@ -57,14 +67,32 @@ export default function ProjectTasksPage() {
       ? {
           mode: "edit" as const,
           task: formModal.task,
-          onSubmit: updateTask,
+          onSubmit: (task: Task) => updateTask.mutate(task),
         }
-      : { mode: "create" as const, onSubmit: addTask };
+      : {
+          mode: "create" as const,
+          onSubmit: (task: Task) => createTask.mutate(task),
+        };
 
   function handleDeleteTask() {
     if (!deleteDialog.open) return;
-    deleteTaskFromStore(deleteDialog.task.id);
+    deleteTaskMutation.mutate(deleteDialog.task.id);
     setDeleteDialog({ open: false });
+  }
+
+  // Скелетон загрузки
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-10 w-full" />
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
