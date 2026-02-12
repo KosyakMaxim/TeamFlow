@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,83 +19,78 @@ import {
   TaskPriority,
   TaskStatus,
 } from "@/shared/types";
-import { Plus } from "lucide-react";
 import { useState } from "react";
 
-type CreateTaskModalProps = {
+type TaskFormModalProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   projectId: string;
-  onSubmit: (task: Task) => void;
-};
+} & (
+  | { mode: "create"; task?: undefined; onSubmit: (task: Task) => void }
+  | { mode: "edit"; task: Task; onSubmit: (task: Task) => void }
+);
 
-// Модалка создания новой задачи
-export function CreateTaskModal({ projectId, onSubmit }: CreateTaskModalProps) {
-  const [open, setOpen] = useState(false);
-
+// Универсальная модалка для создания и редактирования задачи
+export function TaskFormModal({
+  open,
+  onOpenChange,
+  projectId,
+  mode,
+  task,
+  onSubmit,
+}: TaskFormModalProps) {
   // Состояние полей формы
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<TaskStatus>("todo");
-  const [priority, setPriority] = useState<TaskPriority>("medium");
-
-  // Состояние ошибки валидации
   const [error, setError] = useState("");
-
-  // Сброс формы в начальное состояние
-  function resetForm() {
-    setTitle("");
-    setDescription("");
-    setStatus("todo");
-    setPriority("medium");
-    setError("");
-  }
+  const [title, setTitle] = useState(mode === "edit" && task ? task.title : "");
+  const [description, setDescription] = useState(
+    mode === "edit" && task ? task.description : "",
+  );
+  const [status, setStatus] = useState<TaskStatus>(
+    mode === "edit" && task ? task.status : "todo",
+  );
+  const [priority, setPriority] = useState<TaskPriority>(
+    mode === "edit" && task ? task.priority : "medium",
+  );
 
   // Обработка отправки формы
   function handleSubmit() {
-    // Валидация: title не пустой и минимум 3 символа
     const trimmedTitle = title.trim();
     if (trimmedTitle.length < 3) {
       setError("Название должно содержать минимум 3 символа");
       return;
     }
 
-    const newTask: Task = {
-      id: crypto.randomUUID(),
+    const result: Task = {
+      // При редактировании сохраняем id, при создании — генерируем новый
+      id: mode === "edit" ? task.id : crypto.randomUUID(),
       projectId,
       title: trimmedTitle,
       description: description.trim(),
       status,
       priority,
-      assignee: "",
+      assignee: mode === "edit" ? task.assignee : "",
     };
 
-    onSubmit(newTask);
-    resetForm();
-    setOpen(false);
+    onSubmit(result);
+    onOpenChange(false);
   }
 
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        setOpen(value);
-        // Сбрасываем форму при закрытии
-        if (!value) resetForm();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          Новая задача
-        </Button>
-      </DialogTrigger>
+  const isEdit = mode === "edit";
 
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Создать задачу</DialogTitle>
-          <DialogDescription>Заполните поля для новой задачи</DialogDescription>
+          <DialogTitle>
+            {isEdit ? "Редактировать задачу" : "Создать задачу"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Измените поля и сохраните"
+              : "Заполните поля для новой задачи"}
+          </DialogDescription>
         </DialogHeader>
 
-        {/* Форма */}
         <div className="space-y-4">
           {/* Название */}
           <div className="space-y-2">
@@ -106,7 +100,7 @@ export function CreateTaskModal({ projectId, onSubmit }: CreateTaskModalProps) {
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
-                setError(""); // Сбрасываем ошибку при вводе
+                setError("");
               }}
               placeholder="Что нужно сделать?"
             />
@@ -125,7 +119,7 @@ export function CreateTaskModal({ projectId, onSubmit }: CreateTaskModalProps) {
             />
           </div>
 
-          {/* Статус и приоритет в одну строку */}
+          {/* Статус и приоритет */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="status">Статус</Label>
@@ -162,10 +156,12 @@ export function CreateTaskModal({ projectId, onSubmit }: CreateTaskModalProps) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Отмена
           </Button>
-          <Button onClick={handleSubmit}>Создать</Button>
+          <Button onClick={handleSubmit}>
+            {isEdit ? "Сохранить" : "Создать"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
