@@ -2,22 +2,26 @@
 
 import { Button } from "@/components/ui/button";
 import { DeleteTaskDialog } from "@/features/tasks/delete-task-dialog";
+import { useTaskStore } from "@/features/tasks/store";
 import { TaskFilters } from "@/features/tasks/task-filters";
 import { TaskFormModal } from "@/features/tasks/task-form-modal";
 import { TaskTable } from "@/features/tasks/task-table";
-import { mockTasks } from "@/shared/mocks/tasks";
-import { Task, TaskStatus } from "@/shared/types";
+import { Task } from "@/shared/types";
 import { Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-// Страница задач проекта — соединяет компоненты и управляет стейтом
 export default function ProjectTasksPage() {
   const { id } = useParams<{ id: string }>();
 
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | TaskStatus>("all");
+  // Данные и actions из стора
+  const tasks = useTaskStore((s) => s.tasks);
+  const filters = useTaskStore((s) => s.filters);
+  const addTask = useTaskStore((s) => s.addTask);
+  const updateTask = useTaskStore((s) => s.updateTask);
+  const deleteTaskFromStore = useTaskStore((s) => s.deleteTask);
+  const setSearch = useTaskStore((s) => s.setSearch);
+  const setStatusFilter = useTaskStore((s) => s.setStatusFilter);
 
   // Состояние модалки формы задачи
   const [formModal, setFormModal] = useState<
@@ -31,24 +35,16 @@ export default function ProjectTasksPage() {
     { open: false } | { open: true; task: Task }
   >({ open: false });
 
-  // Задачи текущего проекта
-  const projectTasks = useMemo(
-    () => tasks.filter((task) => task.projectId === id),
-    [tasks, id],
-  );
-
-  // Фильтрация по статусу и поиску
+  // Фильтрация задач текущего проекта
   const filteredTasks = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return projectTasks
-      .filter((task) => (status === "all" ? true : task.status === status))
-      .filter((task) => task.title.toLowerCase().includes(query));
-  }, [projectTasks, status, search]);
-
-  // Создание задачи — добавляем в массив
-  function handleCreateTask(task: Task) {
-    setTasks((prev) => [...prev, task]);
-  }
+    const query = filters.search.trim().toLowerCase();
+    return tasks
+      .filter((t) => t.projectId === id)
+      .filter((t) =>
+        filters.status === "all" ? true : t.status === filters.status,
+      )
+      .filter((t) => t.title.toLowerCase().includes(query));
+  }, [tasks, filters, id]);
 
   const formKey = formModal.open
     ? formModal.mode === "edit"
@@ -56,27 +52,20 @@ export default function ProjectTasksPage() {
       : "create"
     : "closed";
 
-  // Обновление задачи — заменяем по id
-  function handleUpdateTask(updated: Task) {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-  }
-
-  // Удаление задачи — убираем из массива по id
-  function handleDeleteTask() {
-    if (!deleteDialog.open) return;
-    setTasks((prev) => prev.filter((t) => t.id !== deleteDialog.task.id));
-    setDeleteDialog({ open: false });
-  }
-
-  // Собираем пропы формы в один объект, и TypeScript корректно сужает union
   const formProps =
     formModal.open && formModal.mode === "edit"
       ? {
           mode: "edit" as const,
           task: formModal.task,
-          onSubmit: handleUpdateTask,
+          onSubmit: updateTask,
         }
-      : { mode: "create" as const, onSubmit: handleCreateTask };
+      : { mode: "create" as const, onSubmit: addTask };
+
+  function handleDeleteTask() {
+    if (!deleteDialog.open) return;
+    deleteTaskFromStore(deleteDialog.task.id);
+    setDeleteDialog({ open: false });
+  }
 
   return (
     <div className="space-y-4">
@@ -95,10 +84,10 @@ export default function ProjectTasksPage() {
       </div>
 
       <TaskFilters
-        search={search}
+        search={filters.search}
         onSearchChange={setSearch}
-        status={status}
-        onStatusChange={setStatus}
+        status={filters.status}
+        onStatusChange={setStatusFilter}
       />
 
       <TaskTable
@@ -107,7 +96,6 @@ export default function ProjectTasksPage() {
         onDelete={(task) => setDeleteDialog({ open: true, task })}
       />
 
-      {/* Модалка создания/редактирования */}
       <TaskFormModal
         key={formKey}
         open={formModal.open}
@@ -118,7 +106,6 @@ export default function ProjectTasksPage() {
         {...formProps}
       />
 
-      {/* Диалог подтверждения удаления */}
       <DeleteTaskDialog
         open={deleteDialog.open}
         onOpenChange={(open) => {

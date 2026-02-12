@@ -1,3 +1,19 @@
+import { z } from "zod";
+
+// Zod-схема формы задачи — единый источник правил валидации
+export const taskFormSchema = z.object({
+  title: z
+    .string()
+    .min(3, "Название должно содержать минимум 3 символа")
+    .max(100, "Максимум 100 символов"),
+  description: z.string().max(500),
+  status: z.enum(["todo", "in_progress", "done"]),
+  priority: z.enum(["low", "medium", "high"]),
+});
+
+// Тип данных формы, выведенный из схемы
+export type TaskFormData = z.infer<typeof taskFormSchema>;
+
 // Проект
 export type Project = {
   id: string;
