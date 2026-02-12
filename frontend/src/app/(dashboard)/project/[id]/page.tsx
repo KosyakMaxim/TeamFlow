@@ -50,6 +50,12 @@ export default function ProjectTasksPage() {
     setTasks((prev) => [...prev, task]);
   }
 
+  const formKey = formModal.open
+    ? formModal.mode === "edit"
+      ? `edit-${formModal.task.id}`
+      : "create"
+    : "closed";
+
   // Обновление задачи — заменяем по id
   function handleUpdateTask(updated: Task) {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
@@ -66,12 +72,11 @@ export default function ProjectTasksPage() {
   const formProps =
     formModal.open && formModal.mode === "edit"
       ? {
-          key: formModal.task.id,
           mode: "edit" as const,
           task: formModal.task,
           onSubmit: handleUpdateTask,
         }
-      : { mode: "create" as const, onSubmit: handleCreateTask, key: "create" };
+      : { mode: "create" as const, onSubmit: handleCreateTask };
 
   return (
     <div className="space-y-4">
@@ -104,6 +109,7 @@ export default function ProjectTasksPage() {
 
       {/* Модалка создания/редактирования */}
       <TaskFormModal
+        key={formKey}
         open={formModal.open}
         onOpenChange={(open) => {
           if (!open) setFormModal({ open: false });
