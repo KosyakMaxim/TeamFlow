@@ -20,3 +20,4 @@ build/
 *.log
 
 react_go_fullstack_study_plan.md
+.history/
